@@ -6,9 +6,10 @@
     <form method="POST">
         <p>Welcher Begriff passt besser?</p>
         <div class="btn-group" role="group" aria-label="...">
-            <input type="hidden" name="user_id" value="23">
-            <button type="submit" class="btn btn-default" name="id" value="{{ first.id }}">{{ first.value }}</button>
-            <button type="submit" class="btn btn-default" name="id" value="{{ second.id }}">{{ second.value }}</button>
+            <input type="hidden" name="first" value="{{ first.id }}">
+            <input type="hidden" name="second" value="{{ second.id }}">
+            <button type="submit" class="btn btn-default" name="chosen" value="{{ first.id }}">{{ first.value }}</button>
+            <button type="submit" class="btn btn-default" name="chosen" value="{{ second.id }}">{{ second.value }}</button>
         </div>
     </form>
 </div>

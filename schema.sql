@@ -14,7 +14,7 @@ create table descriptors (
 drop table if exists users;
 create table users (
     id integer primary key autoincrement,
-    user_name text not null
+    user_name text
 );
 
 drop table if exists answers;
