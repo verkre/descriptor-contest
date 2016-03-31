@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}About Descriptor Contest{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h3> Ein Persönlichkeitstest für Organisationen</h3>
+    <p class="lead">
+        Stell dir vor, deine Organisation wäre eine Person. Welche Eigenschaften hätte sie?
+    </p>
+    <p>
+         Wäre sie mutig oder eher zurückhaltend? Rational oder spielerisch? Im Descriptor Contest treten in jeder Runde zwei Begriffe gegeneinander an. Du entscheidest, welcher deine Organisation besser beschreibt. Nach 20 Runden bekommst du eine Auswertung. Wenn mehrere deiner Kolleginnen und Kollegen den Test machen, entsteht ein Bild von der "Persönlichkeit" eurer Organisation - und Stoff für Diskussionen: Bei welchen Eigenschaften seid ihr euch alle einig? Wo gehen eure Einschätzungen auseinander? Haben vielleicht verschiedene Abteilungen ein unterschiedliches Bild?
+    </p>
+    <a href="{{url_for("choose_descriptor")}}" class="btn btn-default">Test starten</a>
+</div>
+{% endblock content %}
