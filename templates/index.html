@@ -11,5 +11,12 @@
          Wäre sie mutig oder eher zurückhaltend? Rational oder spielerisch? Im Descriptor Contest treten in jeder Runde zwei Begriffe gegeneinander an. Du entscheidest, welcher deine Organisation besser beschreibt. Nach 20 Runden bekommst du eine Auswertung. Wenn mehrere deiner Kolleginnen und Kollegen den Test machen, entsteht ein Bild von der "Persönlichkeit" eurer Organisation - und Stoff für Diskussionen: Bei welchen Eigenschaften seid ihr euch alle einig? Wo gehen eure Einschätzungen auseinander? Haben vielleicht verschiedene Abteilungen ein unterschiedliches Bild?
     </p>
     <a href="{{url_for("choose_descriptor")}}" class="btn btn-default">Test starten</a>
+    
+    <form action="/delete_all_answers_from_user" method="POST">
+        
+        <button type="submit" class="btn btn-danger" name="cancel" value="cancel">Neu starten - alle Eingaben löschen</button>
+        
+    </form>
+    
 </div>
 {% endblock content %}

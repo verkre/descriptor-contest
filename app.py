@@ -18,6 +18,7 @@ DATABASE = "descriptor_contest.db"
 
 app = Flask(__name__)
 app.config.from_object(__name__)
+app.config.from_envvar('DESCRIPTOR_CONTEST_CONFIG', silent=True)
 def connect_db():
     return sqlite3.connect(app.config['DATABASE'])
 
@@ -113,10 +114,6 @@ def save_choice_to_db(form_dict):
         [get_user_id(), higher_ranked, lower_ranked])
     g.db.commit()
 
-def delete_all_answers_from_user():
-    user_id = get_user_id()
-    g.db.execute("delete from answers where user_id=?", [user_id])
-    g.db.commit()
 
 def get_contest_id():
     # TODO set contest_id in cookie somewhere (let user choose german/english default set at the beginning)
@@ -149,6 +146,13 @@ def teardown_request(exception):
 @app.route("/")
 def index():
     return render_template('index.html')
+
+@app.route("/delete_all_answers_from_user", methods=["POST"])
+def delete_all_answers_from_user():
+    user_id = get_user_id()
+    g.db.execute("delete from answers where user_id=?", [user_id])
+    g.db.commit()
+    return redirect('/')
 
 @app.route("/choose_descriptor", methods=["GET", "POST"])
 def choose_descriptor():
