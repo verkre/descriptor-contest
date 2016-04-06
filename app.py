@@ -55,11 +55,7 @@ def choose_descriptor():
     get_user_id()
     if request.method == 'POST':
         save_choice_to_db(request.form, get_user_id())
-    # if second round is over, go on to results page
-    if is_second_round_over(get_user_id(), get_contest_id()):
-        pass
-        # render_template('results.html')
-    if is_second_round_over(get_user_id(), get_contest_id()):
+    if is_third_round_over(get_user_id(), get_contest_id()):
         return redirect('show_results')
     round_number, play_count, (first, second) = choose_two_descriptors(get_user_id(), get_contest_id())
     return render_template('choose_descriptor.html', **locals())

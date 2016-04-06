@@ -18,8 +18,7 @@ def connect_db(app):
     return sqlite3.connect(app.config['DATABASE'])
 
 def choose_two_descriptors(user_id, contest_id):
-    play_count = how_many_pairs_played(user_id, contest_id)
-    query = """
+    query_for_first_round = """
     select * from descriptors 
     join (
         select count(answers.higher_ranked_descriptor_id) as play_count, descriptors.id as inner_descriptor_id 
@@ -32,21 +31,77 @@ def choose_two_descriptors(user_id, contest_id):
     where contest_id=?
     """
     
-    if not is_first_round_over(user_id, contest_id):
-        cursor = g.db.execute(query, [contest_id, 0, contest_id])
-        descriptors_still_to_play = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
-        round_number = 1
-        return round_number, play_count, random.sample(descriptors_still_to_play, 2)
+    # just the winners
+    query_for_first_round_winners = """
+    select * from descriptors 
+    join (
+        select count(answers.id) as higher_ranked_play_count, descriptors.id as inner_descriptor_id 
+        from descriptors 
+        left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id 
+        where contest_id=? 
+        group by descriptors.id 
+        having higher_ranked_play_count=?
+    ) on descriptors.id=inner_descriptor_id 
+    join (
+        select count(answers.id) as play_count, descriptors.id as inner_descriptor_id2 
+        from descriptors 
+        left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id or descriptors.id=answers.lower_ranked_descriptor_id
+        where contest_id=? 
+        group by descriptors.id 
+        having play_count=?
+    ) on descriptors.id=inner_descriptor_id2
+    where contest_id=?
+    """
     
+    query_for_first_round_losers = """
+    select * from descriptors 
+    join (
+        select count(answers.id) as lower_ranked_play_count, descriptors.id as inner_descriptor_id 
+        from descriptors 
+        left outer join answers on descriptors.id=answers.lower_ranked_descriptor_id 
+        where contest_id=? 
+        group by descriptors.id 
+        having lower_ranked_play_count=?
+    ) on descriptors.id=inner_descriptor_id 
+    join (
+        select count(answers.id) as play_count, descriptors.id as inner_descriptor_id2 
+        from descriptors 
+        left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id or descriptors.id=answers.lower_ranked_descriptor_id
+        where contest_id=? 
+        group by descriptors.id 
+        having play_count=?
+    ) on descriptors.id=inner_descriptor_id2
+    where contest_id=?
+    """
+    play_count = how_many_pairs_played(user_id, contest_id)
+    
+    
+    if not is_first_round_over(user_id, contest_id):
+        cursor = g.db.execute(query_for_first_round, [contest_id, 0, contest_id])
+        descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
+        round_number = 1
+        return round_number, play_count, random.sample(descriptors, 2)
+    
+    # winners from first round
     elif not is_second_round_over(user_id, contest_id):
-        cursor = g.db.execute(query, [contest_id, 1, contest_id])
+        cursor = g.db.execute(query_for_first_round_winners, [contest_id, 1, contest_id, 1, contest_id])
         # TODO
         descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 2
+        print "second round"
+        print descriptors
         return round_number, play_count, random.sample(descriptors, 2)
     
-    else:
+    # losers from first round
+    elif not is_third_round_over(user_id, contest_id):
+        cursor = g.db.execute(query_for_first_round_losers, [contest_id, 1, contest_id, 1, contest_id])
+        # TODO ----
+        descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 3
+        return round_number, play_count, random.sample(descriptors, 2)
+        
+    else:
+        round_number = 4
         return round_number, play_count, (None, None)
 
 
@@ -85,10 +140,16 @@ def how_many_descriptors_in_contest(contest_id):
 
 def is_first_round_over(user_id, contest_id):
     # account for the possibility of there being an odd number of descriptors - one will not be played then
-    return how_many_pairs_played(user_id, contest_id) * 2 >= how_many_descriptors_in_contest(contest_id) - 1
+    rounded_down_to_even = how_many_descriptors_in_contest(contest_id) - (how_many_descriptors_in_contest(contest_id) % 2)
+    return how_many_pairs_played(user_id, contest_id) >= rounded_down_to_even / 2
 
 def is_second_round_over(user_id, contest_id):
-    return how_many_pairs_played(user_id, contest_id) >= how_many_descriptors_in_contest(contest_id)
+    rounded_down_to_even = how_many_descriptors_in_contest(contest_id) - (how_many_descriptors_in_contest(contest_id) % 2)
+    return how_many_pairs_played(user_id, contest_id) >= rounded_down_to_even / 2 * 1.5
+
+def is_third_round_over(user_id, contest_id):
+    rounded_down_to_even = how_many_descriptors_in_contest(contest_id) - (how_many_descriptors_in_contest(contest_id) % 2)
+    return how_many_pairs_played(user_id, contest_id) >= rounded_down_to_even
 
 def save_choice_to_db(form_dict, user_id):
     first = form_dict["first"]
