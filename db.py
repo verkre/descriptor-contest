@@ -20,15 +20,15 @@ def connect_db(database_path):
 def choose_two_descriptors(user_id, contest_id):
     query_for_first_round = """
     select * from descriptors 
-    join (
+    left outer join (
         select count(answers.higher_ranked_descriptor_id) as play_count, descriptors.id as inner_descriptor_id 
         from descriptors 
         left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id or descriptors.id=answers.lower_ranked_descriptor_id 
-        where contest_id=? and user_id=? 
+        where descriptors.contest_id=? and answers.user_id=? 
         group by descriptors.id 
         having play_count=?
     ) on descriptors.id=inner_descriptor_id 
-    where contest_id=? and user_id=?
+    where descriptors.contest_id=?
     """
     
     # just the winners
@@ -75,9 +75,8 @@ def choose_two_descriptors(user_id, contest_id):
     """
     play_count = how_many_pairs_played(user_id, contest_id)
     
-    
     if not is_first_round_over(user_id, contest_id):
-        cursor = g.db.execute(query_for_first_round, [contest_id, user_id, 0, contest_id, user_id])
+        cursor = g.db.execute(query_for_first_round, [contest_id, user_id, 0, contest_id])
         descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 1
         return round_number, play_count, random.sample(descriptors, 2)
@@ -111,13 +110,13 @@ def get_results_from_user(user_id, contest_id):
         select count(answers.id) as higher_ranked_play_count, descriptors.id as inner_descriptor_id 
         from descriptors 
         left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id 
-        where contest_id=? and user_id=?
+        where contest_id=? and answers.user_id=?
         group by descriptors.id 
     ) on descriptors.id=inner_descriptor_id 
-    where contest_id=? and user_id=? 
+    where descriptors.contest_id=? 
     order by higher_ranked_play_count desc
     """
-    cursor = g.db.execute(query, [contest_id, user_id, contest_id, user_id])
+    cursor = g.db.execute(query, [contest_id, user_id, contest_id])
     results = []
     for row in cursor.fetchall():
         results.append(row)
@@ -136,19 +135,16 @@ def list_descriptor_ids_in_contest(contest_id):
         ids.append(row[0])
     return ids
 
-def list_descriptors_played_once():
-    contest_id = get_contest_id()
-    user_id = get_user_id()
+def list_descriptors_played_once(user_id, contest_id):
     ids_played = []
-    cursor_higher = g.db.execute("select * from descriptors left outer join answers \
-                        on descriptors.id=answers.higher_ranked_descriptor_id where contest_id=? and user_id=?", [contest_id, user_id])
-    for row in cursor_higher.fetchall():
-        ids_played.append(row[0])
-    cursor_lower = g.db.execute("select * from descriptors left outer join answers \
-                        on descriptors.id=answers.lower_ranked_descriptor_id where contest_id=? and user_id=?", [contest_id, user_id])
-    for row in cursor_lower.fetchall():
-        ids_played.append(row[0])
-    return ids_played
+    cursor_higher = g.db.execute("""
+        select * from descriptors
+        left outer join answers on
+            descriptors.id=answers.higher_ranked_descriptor_id
+            or descriptors.id=answers.lower_ranked_descriptor_id
+        where contest_id=? and user_id=?""",
+        [contest_id, user_id])
+    return [row[0] for row in cursor_higher.fetchall()]
     
 
 def how_many_descriptors_in_contest(contest_id):
