@@ -62,7 +62,8 @@ def choose_descriptor():
 
 @app.route("/show_results", methods=["GET", "POST"])
 def show_results():
-    return "results"
+    results_list = get_results_from_user(get_user_id(), get_contest_id())
+    return render_template('show_results.html', results_list=results_list)
 
 @app.route("/show_results_csv", methods=["GET", "POST"])
 def show_results_csv():
