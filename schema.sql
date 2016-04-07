@@ -1,3 +1,4 @@
+-- REFACT rename contest -> contests for consistency
 drop table if exists contest;
 create table contest (
     id integer primary key autoincrement,
