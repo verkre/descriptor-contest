@@ -32,7 +32,7 @@ def get_user_id():
     
 @app.before_request
 def before_request():
-    g.db = connect_db(app)
+    g.db = connect_db(app.config['DATABASE'])
     
 @app.teardown_request
 def teardown_request(exception):

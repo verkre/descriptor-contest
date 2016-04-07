@@ -14,8 +14,8 @@ from flask import g
 #
 
 
-def connect_db(app):
-    return sqlite3.connect(app.config['DATABASE'])
+def connect_db(database_path):
+    return sqlite3.connect(database_path)
 
 def choose_two_descriptors(user_id, contest_id):
     query_for_first_round = """
