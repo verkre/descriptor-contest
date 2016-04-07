@@ -60,11 +60,14 @@ def choose_descriptor():
     round_number, play_count, (first, second) = choose_two_descriptors(get_user_id(), get_contest_id())
     return render_template('choose_descriptor.html', **locals())
 
-
-
 @app.route("/show_results", methods=["GET", "POST"])
 def show_results():
     return "results"
+
+@app.route("/show_results_csv", methods=["GET", "POST"])
+def show_results_csv():
+    results = get_results_from_user(get_user_id(), get_contest_id())
+    return '\n'.join([", ".join(map(unicode, each)) for each in results])
 
 
 if __name__ == "__main__": # wenn diese Datei direkt ausgeführt wird (python app.py), dann wird app.run aufgerufen
