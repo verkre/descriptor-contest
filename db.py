@@ -19,52 +19,60 @@ def connect_db(database_path):
 
 def choose_two_descriptors(user_id, contest_id):
     unplayed_descriptors_query = """
-    select * from descriptors 
-    left outer join (
-        select descriptors.id as inner_descriptor_id, answers.id as inner_answers_id from descriptors 
-        left outer join answers 
-            on descriptors.id=answers.higher_ranked_descriptor_id
-            or descriptors.id=answers.lower_ranked_descriptor_id 
-        where contest_id=:contest_id and user_id=:user_id 
-        -- this is missing all descriptors that haven't been played yet, which is why we use this as a subquery
-    ) on descriptors.id = inner_descriptor_id
-    where contest_id=:contest_id
-    group by descriptors.id
-    having count(inner_answers_id) = 0
-    -- grouping & counting in the outer query so we get nice 0 where no answers are given
-    -- REFACT try to get the double query effect by pulling the user_id check into the on clause
-    """
+        select * from descriptors 
+        left outer join (
+            select descriptors.id as inner_descriptor_id, answers.id as inner_answers_id from descriptors 
+            left outer join answers 
+                on descriptors.id=answers.higher_ranked_descriptor_id
+                or descriptors.id=answers.lower_ranked_descriptor_id 
+            where contest_id=:contest_id and user_id=:user_id 
+            -- this is missing all descriptors that haven't been played yet, which is why we use this as a subquery
+        ) on descriptors.id = inner_descriptor_id
+        where contest_id=:contest_id
+        group by descriptors.id
+        having count(inner_answers_id) = 0
+        -- grouping & counting in the outer query so we get nice 0 where no answers are given
+        -- REFACT try to get the double query effect by pulling the user_id check into the on clause
+        """
     
     # just the winners
-    first_round_winners_query = """
-    select * from descriptors 
-    join answers on descriptors.id=answers.higher_ranked_descriptor_id 
-    where contest_id=:contest_id and user_id=:user_id 
-    group by descriptors.id 
-    having count(answers.id)=1
-    -- directly after the first round, we don't need to filter out higher ranked ones
-    """
+    descriptors_with_winner_counts_query = """
+        select * from descriptors 
+        join answers on descriptors.id=answers.higher_ranked_descriptor_id 
+        where contest_id=:contest_id and user_id=:user_id 
+        group by descriptors.id 
+        having count(answers.id)=:play_count
+        -- directly after the first round, we don't need to filter out higher ranked ones
+        """
     
-    first_round_loosers_query = """
-    select * from descriptors 
-    join ( -- loosers
-        select count(answers.id) as lower_ranked_play_count, descriptors.id as inner_descriptor_id 
+    play_counts_query = """
+        select descriptors.id as descriptor_id, count(answers.id) as play_count
+        from descriptors 
+        left outer join answers
+            on descriptors.id=answers.higher_ranked_descriptor_id
+            or descriptors.id=answers.lower_ranked_descriptor_id
+        where contest_id=:contest_id and user_id=:user_id 
+        group by descriptors.id 
+        """
+    
+    descriptors_with_loser_counts_query = """
+        select count(answers.id) as play_count, descriptors.id as descriptor_id 
         from descriptors 
         left outer join answers on descriptors.id=answers.lower_ranked_descriptor_id 
         where contest_id=:contest_id and user_id=:user_id 
         group by descriptors.id 
-        having lower_ranked_play_count=:play_count
-    ) on descriptors.id=inner_descriptor_id 
-    join ( -- with play count 1
-        select count(answers.id) as play_count, descriptors.id as inner_descriptor_id2 
-        from descriptors 
-        left outer join answers on descriptors.id=answers.higher_ranked_descriptor_id or descriptors.id=answers.lower_ranked_descriptor_id
-        where contest_id=:contest_id and user_id=:user_id 
-        group by descriptors.id 
-        having play_count=:play_count
-    ) on descriptors.id=inner_descriptor_id2
-    where contest_id=:contest_id
-    """
+        """
+    
+    first_round_losers_query = """
+        select * from descriptors 
+        join ({descriptors_with_loser_counts_query}) as losers
+            on descriptors.id=losers.descriptor_id 
+        join ({play_counts_query}) as play_counts
+            on descriptors.id = play_counts.descriptor_id
+        where contest_id=:contest_id
+            and play_counts.play_count = :play_count
+            and losers.play_count = :play_count
+        """.format(**locals())
     play_count = how_many_pairs_played(user_id, contest_id)
     
     if not is_first_round_over(user_id, contest_id):
@@ -75,7 +83,7 @@ def choose_two_descriptors(user_id, contest_id):
     
     # winners from first round
     elif not is_second_round_over(user_id, contest_id):
-        cursor = g.db.execute(first_round_winners_query, 
+        cursor = g.db.execute(descriptors_with_winner_counts_query, 
             dict(contest_id=contest_id, user_id=user_id, play_count=1))
         descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 2
@@ -83,7 +91,7 @@ def choose_two_descriptors(user_id, contest_id):
     
     # losers from first round
     elif not is_third_round_over(user_id, contest_id):
-        cursor = g.db.execute(first_round_loosers_query,
+        cursor = g.db.execute(first_round_losers_query,
             dict(contest_id=contest_id, user_id=user_id, play_count=1))
         descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 3
