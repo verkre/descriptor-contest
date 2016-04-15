@@ -140,7 +140,8 @@ def list_descriptors_played_once(user_id, contest_id):
             on descriptors.id=answers.higher_ranked_descriptor_id
             or descriptors.id=answers.lower_ranked_descriptor_id
         where contest_id=? and user_id=?
-        group by descriptors.id -- remove duplicates
+        group by descriptors.id
+        having count(answers.id) = 1
         """, [contest_id, user_id])
     return [row[0] for row in cursor_higher.fetchall()]
     
