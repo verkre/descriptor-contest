@@ -20,19 +20,15 @@ def connect_db(database_path):
 def choose_two_descriptors(user_id, contest_id):
     unplayed_descriptors_query = """
         select * from descriptors 
-        left outer join (
-            select descriptors.id as inner_descriptor_id, answers.id as inner_answers_id from descriptors 
-            left outer join answers 
-                on descriptors.id=answers.higher_ranked_descriptor_id
-                or descriptors.id=answers.lower_ranked_descriptor_id 
-            where contest_id=:contest_id and user_id=:user_id 
-            -- this is missing all descriptors that haven't been played yet, which is why we use this as a subquery
-        ) on descriptors.id = inner_descriptor_id
-        where contest_id=:contest_id
+        left outer join answers 
+            on (
+                descriptors.id=answers.higher_ranked_descriptor_id
+                or descriptors.id=answers.lower_ranked_descriptor_id
+            )
+            and user_id=:user_id 
+        where contest_id=:contest_id 
         group by descriptors.id
-        having count(inner_answers_id) = 0
-        -- grouping & counting in the outer query so we get nice 0 where no answers are given
-        -- REFACT try to get the double query effect by pulling the user_id check into the on clause
+        having count(answers.id) = 0
         """
     
     # just the winners
