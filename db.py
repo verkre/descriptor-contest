@@ -31,17 +31,15 @@ def choose_two_descriptors(user_id, contest_id):
         having count(answers.id) = 0
         """
     
-    # just the winners
-    descriptors_with_winner_counts_query = """
+    descriptors_by_winner_counts_query = """
         select * from descriptors 
         join answers on descriptors.id=answers.higher_ranked_descriptor_id 
         where contest_id=:contest_id and user_id=:user_id 
         group by descriptors.id 
         having count(answers.id)=:play_count
-        -- directly after the first round, we don't need to filter out higher ranked ones
         """
     
-    play_counts_query = """
+    descriptor_ids_by_play_counts_query = """
         select descriptors.id as descriptor_id, count(answers.id) as play_count
         from descriptors 
         left outer join answers
@@ -51,8 +49,8 @@ def choose_two_descriptors(user_id, contest_id):
         group by descriptors.id 
         """
     
-    descriptors_with_loser_counts_query = """
-        select count(answers.id) as play_count, descriptors.id as descriptor_id 
+    descriptor_ids_by_loser_counts_query = """
+        select descriptors.id as descriptor_id, count(answers.id) as play_count 
         from descriptors 
         left outer join answers on descriptors.id=answers.lower_ranked_descriptor_id 
         where contest_id=:contest_id and user_id=:user_id 
@@ -61,9 +59,9 @@ def choose_two_descriptors(user_id, contest_id):
     
     first_round_losers_query = """
         select * from descriptors 
-        join ({descriptors_with_loser_counts_query}) as losers
+        join ({descriptor_ids_by_loser_counts_query}) as losers
             on descriptors.id=losers.descriptor_id 
-        join ({play_counts_query}) as play_counts
+        join ({descriptor_ids_by_play_counts_query}) as play_counts
             on descriptors.id = play_counts.descriptor_id
         where contest_id=:contest_id
             and play_counts.play_count = :play_count
@@ -79,7 +77,9 @@ def choose_two_descriptors(user_id, contest_id):
     
     # winners from first round
     elif not is_second_round_over(user_id, contest_id):
-        cursor = g.db.execute(descriptors_with_winner_counts_query, 
+        # directly afte the first round we don't need to filter out 
+        # play counts higher than 1 as there aren't any yet
+        cursor = g.db.execute(descriptors_by_winner_counts_query, 
             dict(contest_id=contest_id, user_id=user_id, play_count=1))
         descriptors = [dict(id=row[0], value=row[1]) for row in cursor.fetchall()]
         round_number = 2
