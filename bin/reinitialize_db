@@ -1,0 +1,7 @@
+#!/bin/sh
+
+cd $(dirname $0)/..
+
+rm descriptor_contest.db
+sqlite3 descriptor_contest.db < schema.sql 
+sqlite3 descriptor_contest.db < test_data.sql
