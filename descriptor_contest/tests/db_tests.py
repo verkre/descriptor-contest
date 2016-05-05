@@ -118,4 +118,9 @@ class DbTests(TestCase):
         expect(by_play_count[0]).has_length(5)
         expect(by_play_count[1]).has_length(10)
         expect(by_play_count[2]).has_length(5)
-        
+    
+    def test_sqlalchemy(self):
+        # import pdb; pdb.set_trace()
+        from ..models import Contest
+        print Contest.query.all()
+        fail()
