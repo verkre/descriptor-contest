@@ -1,8 +1,8 @@
 pragma foreign_keys=OFF;
 begin transaction;
 
-insert into contest values (1, "deutsch");
-insert into contest values (2, "english");
+insert into contests values (1, "deutsch");
+insert into contests values (2, "english");
 
 insert into descriptors values (1, "loyal", 1);
 insert into descriptors values (2, "diplomatisch", 1);

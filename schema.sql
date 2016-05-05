@@ -1,6 +1,5 @@
--- REFACT rename contest -> contests for consistency
-drop table if exists contest;
-create table contest (
+drop table if exists contests;
+create table contests (
     id integer primary key autoincrement,
     name text not null
 );
@@ -9,7 +8,7 @@ drop table if exists descriptors;
 create table descriptors (
     id integer primary key autoincrement,
     value text not null,
-    contest_id integer not null references contest (id)
+    contest_id integer not null references contests (id)
 );
 
 drop table if exists users;
