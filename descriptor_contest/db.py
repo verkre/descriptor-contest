@@ -6,6 +6,7 @@ import sqlite3
 import random
 
 from flask import g
+from . import app
 
 
 # before first run, create database with:
@@ -13,6 +14,16 @@ from flask import g
 # on terminal
 #
 
+
+@app.before_request
+def before_request():
+    g.db = connect_db(app.config['DATABASE'])
+    
+@app.teardown_request
+def teardown_request(exception):
+    db = getattr(g, "db", None)
+    if db is not None:
+        db.close()
 
 def connect_db(database_path):
     return sqlite3.connect(database_path)

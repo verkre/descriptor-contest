@@ -1,0 +1,8 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+from descriptor_contest import app
+
+if __name__ == "__main__": # wenn diese Datei direkt ausgeführt wird (python app.py), dann wird app.run aufgerufen
+    app.run() # startet Webserver, präsentiert die Applikation, wartet auf Anfragen vom Browser
+
