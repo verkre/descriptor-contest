@@ -2,3 +2,4 @@
 descriptor_contest.db
 
 *.pyc
+descriptor_contest.egg-info
