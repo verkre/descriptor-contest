@@ -2,9 +2,8 @@ from unittest import TestCase
 from pyexpect import expect
 from collections import defaultdict
 
-import flask
-import app, db
-from db import *
+from flask import g
+from .. import app, db, views
 
 class DbTests(TestCase):
     """
@@ -13,11 +12,11 @@ class DbTests(TestCase):
     """
     
     def setUp(self):
-        app.app.config['TESTING'] = True
-        self.client = app.app.test_client()
-        self.app_context = app.app.app_context()
+        app.config['TESTING'] = True
+        self.client = app.test_client()
+        self.app_context = app.app_context()
         self.app_context.push()
-        app.before_request() # create db connection
+        db.before_request() # create db connection
         
         self.contest_id = 2 # english
         self.descriptor_ids = db.list_descriptor_ids_in_contest(self.contest_id)
@@ -26,27 +25,27 @@ class DbTests(TestCase):
     def tearDown(self):
         # just a nicety, since we generate a new user for each test
         # the cleanup isn't strictly neccessary
-        delete_all_answers_from_user(self.user_id)
+        db.delete_all_answers_from_user(self.user_id)
         
         app.teardown_request(None) # kill db connection
         self.app_context.pop()
         
     def test_insert_answers(self):
-        expect(how_many_pairs_played(self.user_id, self.contest_id)) == 0
+        expect(db.how_many_pairs_played(self.user_id, self.contest_id)) == 0
         db.save_choice_to_db(
             dict(
                 first=self.descriptor_ids[0],
                 second=self.descriptor_ids[1],
                 chosen=self.descriptor_ids[1]),
             self.user_id)
-        expect(how_many_pairs_played(self.user_id, self.contest_id)) == 1
+        expect(db.how_many_pairs_played(self.user_id, self.contest_id)) == 1
         db.save_choice_to_db(
             dict(
                 first=self.descriptor_ids[2],
                 second=self.descriptor_ids[3],
                 chosen=self.descriptor_ids[3]),
             self.user_id)
-        expect(how_many_pairs_played(self.user_id, self.contest_id)) == 2
+        expect(db.how_many_pairs_played(self.user_id, self.contest_id)) == 2
     
     
     def _play_rounds(self, how_often, round_number, start_index, assertion=None):
@@ -62,16 +61,16 @@ class DbTests(TestCase):
     
     def _results_by_play_count(self):
         by_play_count = defaultdict(list)
-        for result in get_results_from_user(self.user_id, self.contest_id):
+        for result in db.get_results_from_user(self.user_id, self.contest_id):
             by_play_count[result[1]].append(result)
         return by_play_count
     
     def test_choose_descriptors_will_choose_each_pair_of_descriptors_once_in_first_round(self):
         "10 pairs in the first round"
         self._play_rounds(10, 1, 0)
-        expect(how_many_pairs_played(self.user_id, self.contest_id)) == 10
-        expect(list_descriptors_played_once(self.user_id, self.contest_id)).has_length(20)
-        for result in get_results_from_user(self.user_id, self.contest_id):
+        expect(db.how_many_pairs_played(self.user_id, self.contest_id)) == 10
+        expect(db.list_descriptors_played_once(self.user_id, self.contest_id)).has_length(20)
+        for result in db.get_results_from_user(self.user_id, self.contest_id):
             expect(result[1]).in_(0,1)
     
     def test_choose_descriptors_will_choose_each_winner_from_first_round_once_in_second_round(self):
@@ -90,7 +89,7 @@ class DbTests(TestCase):
             expect(locals['second']['id']).in_(higher_ranked_ids)
         
         self._play_rounds(5, 2, 10, assertion)
-        expect(how_many_pairs_played(self.user_id, self.contest_id)) == 15
+        expect(db.how_many_pairs_played(self.user_id, self.contest_id)) == 15
         
         by_play_count = self._results_by_play_count()
         expect(by_play_count[0]).has_length(10)
