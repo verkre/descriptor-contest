@@ -1,0 +1,3 @@
+pyexpect
+nose
+watching_testrunner
