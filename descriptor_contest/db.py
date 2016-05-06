@@ -4,9 +4,11 @@ from __future__ import unicode_literals
 
 import sqlite3
 import random
+from sqlalchemy.sql.functions import count
+
 
 from flask import g
-from . import app
+from . import app, models
 
 
 # before first run, create database with:
@@ -27,6 +29,7 @@ def teardown_request(exception):
 
 def connect_db(database_path):
     return sqlite3.connect(database_path)
+
 
 def choose_two_descriptors(user_id, contest_id):
     unplayed_descriptors_query = """
@@ -126,37 +129,33 @@ def get_results_from_user(user_id, contest_id):
     return [(row[0], row[1] or 0) for row in cursor.fetchall()]
 
 def how_many_pairs_played(user_id, contest_id):
-    cursor = g.db.execute("""
-        select count(answers.id), * from descriptors
-        join answers on descriptors.id=answers.higher_ranked_descriptor_id
-        where contest_id=? and user_id=?""", [contest_id, user_id])
-    return cursor.fetchone()[0]
+    return (
+        models.Contest.query.get(contest_id).descriptors
+        .join(models.Descriptor.higher_ranked_answers)
+        .filter(models.Answer.user_id == user_id)
+        .count()
+    )
 
 def list_descriptor_ids_in_contest(contest_id):
-    cursor = g.db.execute("select * from descriptors where contest_id=?", [contest_id])
-    ids = []
-    for row in cursor.fetchall():
-        ids.append(row[0])
-    return ids
+    descriptors = models.Contest.query.get(contest_id).descriptors.all()
+    return map(lambda each: each.id, descriptors)
 
 def list_descriptors_played_once(user_id, contest_id):
-    ids_played = []
-    cursor_higher = g.db.execute("""
-        select * from descriptors
-        left outer join answers
-            on descriptors.id=answers.higher_ranked_descriptor_id
-            or descriptors.id=answers.lower_ranked_descriptor_id
-        where contest_id=? and user_id=?
-        group by descriptors.id
-        having count(answers.id) = 1
-        """, [contest_id, user_id])
-    return [row[0] for row in cursor_higher.fetchall()]
+    played_once = (
+        models.Contest.query.get(contest_id).descriptors
+        .outerjoin(models.Answer,
+            (models.Descriptor.id == models.Answer.higher_ranked_descriptor_id)
+            | (models.Descriptor.id == models.Answer.lower_ranked_descriptor_id)
+        )
+        .filter(models.Answer.user_id==user_id)
+        .group_by(models.Descriptor.id)
+        .having(count(models.Answer.id) == 1)
+    )
+    return map(lambda each: each.id, played_once)
     
 
 def how_many_descriptors_in_contest(contest_id):
-    cursor = g.db.execute("select count(id) from descriptors where contest_id=?", [contest_id])
-    return cursor.fetchall()[0][0]
-    # seems a little ugly with the cursor.fetchall etc - the statement itself returns just a number in the sqlite3-shell
+    return models.Contest.query.get(contest_id).descriptors.count()
 
 def is_first_round_over(user_id, contest_id):
     # account for the possibility of there being an odd number of descriptors - one will not be played then
@@ -181,16 +180,19 @@ def save_choice_to_db(form_dict, user_id):
     else:
         higher_ranked = second
         lower_ranked = first
-    g.db.execute("insert into answers (user_id, higher_ranked_descriptor_id, lower_ranked_descriptor_id) values (?, ?, ?)", 
-        [user_id, higher_ranked, lower_ranked])
-    g.db.commit()
+    answer = models.Answer(
+        user_id=user_id,
+        higher_ranked_descriptor_id=higher_ranked,
+        lower_ranked_descriptor_id=lower_ranked)
+    models.db.session.add(answer)
+    models.db.session.commit()
 
 
 def id_from_new_user():
-    cursor = g.db.execute("insert into users default values")
-    g.db.commit()
-    return cursor.lastrowid
+    user = models.User()
+    models.db.session.add(user)
+    models.db.session.commit()
+    return user.id
 
 def delete_all_answers_from_user(user_id):
-    g.db.execute("delete from answers where user_id=?", [user_id])
-    g.db.commit()
+    models.User.query.get(user_id).answers.delete()

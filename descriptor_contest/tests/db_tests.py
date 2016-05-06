@@ -1,9 +1,11 @@
+from __future__ import unicode_literals
+
 from unittest import TestCase
 from pyexpect import expect
 from collections import defaultdict
 
 from flask import g
-from .. import app, db, views
+from .. import app, db, views, models
 
 class DbTests(TestCase):
     """
@@ -19,13 +21,17 @@ class DbTests(TestCase):
         db.before_request() # create db connection
         
         self.contest_id = 2 # english
+        self.contest = models.Contest.query.filter(models.Contest.name=='english').one()
         self.descriptor_ids = db.list_descriptor_ids_in_contest(self.contest_id)
+        self.descriptors = self.contest.descriptors.all()
         self.user_id = db.id_from_new_user()
+        self.user = models.User.query.get(self.user_id)
     
     def tearDown(self):
         # just a nicety, since we generate a new user for each test
         # the cleanup isn't strictly neccessary
         db.delete_all_answers_from_user(self.user_id)
+        # REFACT consider to use cascading rules to get rid of answers and just delete the user
         
         app.teardown_request(None) # kill db connection
         self.app_context.pop()
@@ -76,13 +82,19 @@ class DbTests(TestCase):
     def test_choose_descriptors_will_choose_each_winner_from_first_round_once_in_second_round(self):
         "5 pairs in the second round (winners of first round)"
         self._play_rounds(10, 1, 0)
-        higher_ranked_ids = [id for (id,) in g.db.execute('''
-            select descriptors.id from descriptors 
-            join answers on descriptors.id == answers.higher_ranked_descriptor_id 
-            where contest_id = :contest_id and user_id = :user_id
-            group by descriptors.id having count(1) = 1''',
-            self.__dict__).fetchall()]
-        expect(higher_ranked_ids).has_length(10)
+        # REFACT consider making this a function on db? This is probably needed in choose_two_descriptors()
+        from sqlalchemy.sql.functions import count
+        higher_ranked_descriptors = (
+            self.contest.descriptors
+                .join(models.Descriptor.higher_ranked_answers)
+                .filter(models.Answer.user==self.user)
+                .group_by(models.Descriptor.id)
+                # having clause is probably overkill, as that should be guaranteed by the game code
+                .having(count(models.Descriptor.id) == 1)
+            ).all()
+        
+        expect(higher_ranked_descriptors).has_length(10)
+        higher_ranked_ids = map(lambda each: each.id, higher_ranked_descriptors)
         
         def assertion(locals):
             expect(locals['first']['id']).in_(higher_ranked_ids)
@@ -99,15 +111,19 @@ class DbTests(TestCase):
     def test_choose_descriptors_will_choose_each_loser_from_the_first_round_once_in_third_round(self):
         "5 pairs in the third round (loswers of the first round)"
         self._play_rounds(10, 1, 0)
-        lower_ranked_ids = [id for (id,) in g.db.execute('''
-            select descriptors.id from descriptors 
-            join answers on descriptors.id == answers.lower_ranked_descriptor_id 
-            where contest_id = :contest_id and user_id = :user_id
-            group by descriptors.id having count(1) = 1''',
-            self.__dict__).fetchall()]
-        expect(lower_ranked_ids).has_length(10)
+        from sqlalchemy.sql.functions import count
+        lower_ranked_descriptors = (
+            self.contest.descriptors
+                .join(models.Descriptor.lower_ranked_answers)
+                .filter(models.Answer.user==self.user)
+                .group_by(models.Descriptor.id)
+                # having clause is probably overkill, as that should be guaranteed by the game code
+                .having(count(models.Descriptor.id) == 1)
+        ).all()
+        expect(lower_ranked_descriptors).has_length(10)
         self._play_rounds(5, 2, 10)
         
+        lower_ranked_ids =  map(lambda each: each.id, lower_ranked_descriptors)
         def assertion(locals):
             expect(locals['first']['id']).in_(lower_ranked_ids)
             expect(locals['second']['id']).in_(lower_ranked_ids)
@@ -119,8 +135,3 @@ class DbTests(TestCase):
         expect(by_play_count[1]).has_length(10)
         expect(by_play_count[2]).has_length(5)
     
-    def test_sqlalchemy(self):
-        # import pdb; pdb.set_trace()
-        from ..models import Contest
-        print Contest.query.all()
-        fail()
