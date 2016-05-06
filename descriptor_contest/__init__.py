@@ -10,7 +10,8 @@ from flask import Flask
 DEBUG = True # do NOT deploy with debug = True!
 SECRET_KEY = "pe1Eefae6oodijiis0iZaahufah2hu"
 DATABASE = "descriptor_contest.db"
-# SQLALCHEMY_DATABASE_URI = 'sqlite://descriptor_contest.db'
+SQLALCHEMY_DATABASE_URI = 'sqlite:///../descriptor_contest.db'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 app = Flask(__name__)
 app.config.from_object(__name__)
