@@ -18,4 +18,4 @@ app.config.from_envvar('DESCRIPTOR_CONTEST_CONFIG', silent=True)
 
 # yes it's a circular import, but it's fine because we're not accessing anything in it
 # but just ensure that it is parsed by python
-import views
+from . import views
