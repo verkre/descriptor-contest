@@ -13,7 +13,8 @@
 * restrict downloading of statistics to admin
 * show list of contests to admin
 * let admin create new contests (incl. their own sets of descriptors)
-
+* allow anonymous contest creation via UUID secret contest ID
+* allow named contests for easily share urls? (maybe better as a meta-service for hoodle tools)
 
 # DONE
 * write user's answers to database
