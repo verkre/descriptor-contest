@@ -1,7 +1,6 @@
 from flask import render_template, request, url_for, g, session, redirect
 
-from . import app
-import db
+from . import app, db
 
 # REFACT get contest id from db and URL. then move this function to db module.
 def get_contest_id():
